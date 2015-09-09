@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/jpillora/chisel/client"
-	"github.com/jpillora/chisel/server"
+	"github.com/gamorejon/chisel/client"
+	"github.com/gamorejon/chisel/server"
 )
 
 var VERSION string = "0.0.0-src" //set via ldflags
@@ -27,7 +27,6 @@ var help = `
 `
 
 func main() {
-
 	version := flag.Bool("version", false, "")
 	flag.Bool("help", false, "")
 	flag.Bool("h", false, "")

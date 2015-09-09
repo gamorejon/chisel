@@ -2,6 +2,8 @@ package chserver
 
 import (
 	"errors"
+	"io"
+	"os"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -97,6 +99,7 @@ func (s *Server) Run(host, port string) error {
 }
 
 func (s *Server) Start(host, port string) error {
+	s.Infof("test")
 	s.Infof("Fingerprint %s", s.fingerprint)
 	if len(s.Users) > 0 {
 		s.Infof("User authenication enabled")
@@ -151,6 +154,7 @@ func (s *Server) authUser(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions, er
 	s.sessions[string(c.SessionID())] = u
 	return nil, nil
 }
+
 
 func (s *Server) handleWS(ws *websocket.Conn) {
 	// Before use, a handshake must be performed on the incoming net.Conn.
@@ -212,6 +216,7 @@ func (s *Server) handleWS(ws *websocket.Conn) {
 	l := s.Fork("session#%d", id)
 
 	l.Debugf("Open")
+	l.Debugf("Test")
 
 	go func() {
 		for r := range reqs {
@@ -224,7 +229,46 @@ func (s *Server) handleWS(ws *websocket.Conn) {
 		}
 	}()
 
-	go chshare.ConnectStreams(l, chans)
+	go func() {
+		var streamCount int
+		l.Debugf("look at the channels...")
+		/*stream, reqs, err := sshConn.OpenChannel("session", nil)
+		if err != nil {
+			l.Debugf("Failed to open channel", err)
+			return
+		}
+		go ssh.DiscardRequests(reqs)
+		*/
+
+		for ch := range chans {
+			l.Debugf("channel %d", streamCount)
+
+			//addr := string(ch.ExtraData())
+
+			stream, reqs, err := ch.Accept()
+			if err != nil {
+				l.Debugf("Failed to accept stream: %s", err)
+				continue
+			}
+
+			streamCount++
+			//id := streamCount
+			l.Debugf("Request Shell")
+			var succ bool
+			succ, err = stream.SendRequest("shell",true, nil)
+			if !succ || err != nil {
+				l.Debugf("Failed to get shell: %s", err)
+				continue
+			}
+
+			go ssh.DiscardRequests(reqs)
+			go io.Copy(stream, os.Stdout)
+			go io.Copy(os.Stdin, stream)
+			//go handleShellStream(l.Fork("stream#%d", id), stream, addr)
+		}
+	}()
+	//go chshare.ConnectStreams(l, chans)
 	sshConn.Wait()
 	l.Debugf("Close")
 }
+
